@@ -29,53 +29,36 @@ class DownCommand extends BaseDownCommand
     protected $description = 'Put the application into maintenance mode';
 
     /**
-     * Execute the console command.
+     * Create a maintenance file for the application.
      *
-     * @return int
-     */
-    public function handle()
-    {
-        // Call the parent handle method to maintain all existing functionality
-        $result = parent::handle();
-
-        // If the parent command was successful and we have a message option
-        if ($result === 0 && $this->option('message')) {
-            $this->setMaintenanceMessage($this->option('message'));
-        }
-
-        return $result;
-    }
-
-    /**
-     * Set the maintenance message in the payload.
-     *
-     * @param  string  $message
      * @return void
      */
-    protected function setMaintenanceMessage($message)
+    protected function createMaintenanceFile()
     {
-        $maintenanceFilePath = storage_path('framework/maintenance.php');
+        // First, we'll create the payload array with all the standard options
+        $payload = $this->getMaintenancePayload();
 
-        if (File::exists($maintenanceFilePath)) {
-            $content = File::get($maintenanceFilePath);
-            
-            // Extract the payload from the maintenance file
-            if (preg_match('/\$data\s*=\s*(\[.+?\]);/s', $content, $matches)) {
-                $payload = $matches[1];
-                
-                // Add or update the message in the payload
-                if (strpos($payload, "'message'") !== false) {
-                    $payload = preg_replace("/'message'\s*=>\s*'.*?'/", "'message' => '" . addslashes($message) . "'", $payload);
-                } else {
-                    $payload = str_replace(']', ", 'message' => '" . addslashes($message) . "']", $payload);
-                }
-                
-                // Update the maintenance file with the new payload
-                $content = preg_replace('/\$data\s*=\s*\[.+?\];/s', "\$data = {$payload};", $content);
-                File::put($maintenanceFilePath, $content);
-                
-                $this->components->info("Application is now in maintenance mode with custom message.");
-            }
+        // Add the custom message if provided
+        if ($this->option('message')) {
+            $payload['message'] = $this->option('message');
+        }
+
+        // Create the down file with the payload
+        file_put_contents(
+            storage_path('framework/down'),
+            json_encode($payload, JSON_PRETTY_PRINT)
+        );
+
+        // Create the maintenance.php file from our template
+        file_put_contents(
+            storage_path('framework/maintenance.php'),
+            file_get_contents(storage_path('framework/maintenance-template.php'))
+        );
+
+        $this->components->info('Application is now in maintenance mode.');
+
+        if ($this->option('message')) {
+            $this->components->info('Maintenance message: '.$this->option('message'));
         }
     }
 }
