@@ -45,3 +45,4 @@ if (file_exists(__DIR__.'/../../resources/views/errors/503.blade.php')) {
 // Fallback to plain text
 echo $data['message'];
 exit(1);
+
